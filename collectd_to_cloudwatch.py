@@ -14,20 +14,24 @@ def config(conf):
     collectd.debug('Configuring Stuff')
     global REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, NAMESPACE, METRICS
 
-    if conf.region:
-        REGION = conf.region
-    if conf.aws_access_key_id:
-        AWS_ACCESS_KEY_ID = conf.aws_access_key_id
-    if conf.conf.aws_secret_access_key:
-        AWS_SECRET_ACCESS_KEY = conf.aws_secret_access_key
-    if conf.namespace:
-        NAMESPACE = conf.namespace
-    METRICS_CONFIG = conf.metrics_config
-    collectd.debug('Loading YAML plugins configuration')
+    for node in conf.children:
+        if node.key == 'region':
+            REGION = node.values[0]
+        if node.key == 'aws_access_key_id':
+            AWS_ACCESS_KEY_ID = node.values[0]
+        if node.key == 'aws_secret_access_key':
+            AWS_SECRET_ACCESS_KEY = node.values[0]
+        if node.key == 'namespace':
+            NAMESPACE = node.values[0]
+        if node.key == 'metrics_config':
+            metrics_config = node.values[0]
+
+        collectd.debug('Loading YAML plugins configuration')
     try:
-        METRICS = yload(METRICS_CONFIG)
+        stream = open(metrics_config)
+        METRICS = yload(stream)
     except:
-        collectd.warn("Couldn't load YAML plugins configuration {0}").format(METRICS_CONFIG)
+        collectd.warning(("Couldn't load YAML plugins configuration {0}").format(metrics_config))
 
 
 def init():
@@ -37,12 +41,12 @@ def init():
         try:
             cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
         except:
-            collectd.warn("Couldn't connect to cloudwatch with your access_key")
+            collectd.warning("Couldn't connect to cloudwatch with your access_key")
     else:
         try:
             cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION)
         except:
-            collectd.warn("Couldn't connect to cloudwatch with your instance role")
+            collectd.warning("Couldn't connect to cloudwatch with your instance role")
 
 
 def shutdown():
@@ -67,15 +71,11 @@ def write(vl, datas=None):
         else:
             unit = METRICS[vl.plugin][vl.type]
 
-        dimensions = 'Source=collectd, InstanceName={host} '.format(vl.host)
+        dimensions = 'Source=collectd, InstanceName={host} '.format(host=vl.host)
         # Needed ?
-        if len(vl.values) > 1:
-            for i in vl.values:
-                collectd.debug('Putting {metric}={value}{unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions)
-                cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=i, unit=unit, dimensions=dimensions)
-        else:
-            collectd.debug('Putting {metric}={value}{unit} to {namespace} {dimensions}').format(metric=metric_name, value=vl.values, unit=unit, namespace=NAMESPACE, dimensions=dimensions)
-            cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=vl.values, unit=unit, dimensions=dimensions)
+        for i in vl.values:
+            collectd.notice(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
+            cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=i, unit=unit, dimensions=dimensions)
 
 
 collectd.register_config(config)

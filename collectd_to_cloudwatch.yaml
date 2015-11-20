@@ -21,3 +21,5 @@ memory:
         cached: Bytes
         free: Bytes
         used: Bytes
+        slab_recl: Bytes
+        slab_unrecl: Bytes

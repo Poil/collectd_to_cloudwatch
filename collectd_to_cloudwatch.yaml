@@ -1,0 +1,23 @@
+cpu:
+    cpu:
+        idle: None
+        interrupt: None
+        nice: None
+        softirq: None
+        steal: None
+        system: None
+        user: None
+        wait: None
+
+df:
+    df_complex:
+        free: Bytes
+        reserved: Bytes
+        used: Bytes
+
+memory:
+    memory:
+        buffered: Bytes
+        cached: Bytes
+        free: Bytes
+        used: Bytes

@@ -71,10 +71,10 @@ def write(vl, datas=None):
         else:
             unit = METRICS[vl.plugin][vl.type]
 
-        dimensions = { 'Source' : 'collectd', 'InstanceName' : vl.host }
+        dimensions = {'Source': 'collectd', 'InstanceName': vl.host}
         # Needed ?
         for i in vl.values:
-            collectd.notice(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
+            collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
             cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
 
 

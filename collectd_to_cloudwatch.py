@@ -60,22 +60,22 @@ def write(vl, datas=None):
     if METRICS.get(vl.plugin) and METRICS[vl.plugin].get(vl.type):
 
         if vl.plugin_instance:
-            metric_name = '{p}{pi}{t}'.format(p=vl.plugin, pi=vl.plugin_instance.title(), t=vl.type.title())
+            metric_name = '{p}-{pi}/{t}'.format(p=vl.plugin, pi=vl.plugin_instance, t=vl.type)
         else:
-            metric_name = '{p}{t}'.format(p=vl.plugin, t=vl.type.title())
+            metric_name = '{p}/{t}'.format(p=vl.plugin, t=vl.type)
 
         # Append type_instance to metric_name and get unit of the metric
         if vl.type_instance:
-            metric_name = '{m}{ti}'.format(m=metric_name, ti=vl.type_instance.title())
+            metric_name = '{m}-{ti}'.format(m=metric_name, ti=vl.type_instance)
             unit = METRICS[vl.plugin][vl.type][vl.type_instance]
         else:
             unit = METRICS[vl.plugin][vl.type]
 
-        dimensions = 'Source=collectd, InstanceName={host} '.format(host=vl.host)
+        dimensions = { 'Source' : 'collectd', 'InstanceName' : vl.host }
         # Needed ?
         for i in vl.values:
             collectd.notice(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
-            cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=i, unit=unit, dimensions=dimensions)
+            cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
 
 
 collectd.register_config(config)

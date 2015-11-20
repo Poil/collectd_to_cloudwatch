@@ -1,17 +1,27 @@
-import time
 import collectd
 import boto.ec2.cloudwatch
 from yaml import load as yload
+
+REGION = False
+AWS_ACCESS_KEY_ID = False
+AWS_SECRET_ACCESS_KEY = False
+NAMESPACE = False
+METRICS = {}
+cw_ec2 = False
 
 
 def config(conf):
     collectd.debug('Configuring Stuff')
     global REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, NAMESPACE, METRICS
 
-    REGION = conf.get('region', False)
-    AWS_ACCESS_KEY_ID = conf.get('aws_access_key_id', False)
-    AWS_SECRET_ACCESS_KEY = conf.get('aws_secret_access_key', False)
-    NAMESPACE = conf.get('namespace', 'AWS/EC2')
+    if conf.region:
+        REGION = conf.region
+    if conf.aws_access_key_id:
+        AWS_ACCESS_KEY_ID = conf.aws_access_key_id
+    if conf.conf.aws_secret_access_key:
+        AWS_SECRET_ACCESS_KEY = conf.aws_secret_access_key
+    if conf.namespace:
+        NAMESPACE = conf.namespace
     METRICS_CONFIG = conf.metrics_config
     collectd.debug('Loading YAML plugins configuration')
     try:
@@ -22,15 +32,15 @@ def config(conf):
 
 def init():
     collectd.debug('initing stuff')
-    global cw_ec2
+    global cw_ec2, REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         try:
-            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(region, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
         except:
             collectd.warn("Couldn't connect to cloudwatch with your access_key")
     else:
         try:
-            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(region)
+            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION)
         except:
             collectd.warn("Couldn't connect to cloudwatch with your instance role")
 
@@ -64,7 +74,7 @@ def write(vl, datas=None):
                 collectd.debug('Putting {metric}={value}{unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions)
                 cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=i, unit=unit, dimensions=dimensions)
         else:
-            collectd.debug('Putting {metric}={value}{unit} to {namespace} {dimensions}').format(metric=metric_name, value=values, unit=unit, namespace=NAMESPACE, dimensions=dimensions)
+            collectd.debug('Putting {metric}={value}{unit} to {namespace} {dimensions}').format(metric=metric_name, value=vl.values, unit=unit, namespace=NAMESPACE, dimensions=dimensions)
             cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=vl.values, unit=unit, dimensions=dimensions)
 
 
@@ -72,4 +82,3 @@ collectd.register_config(config)
 collectd.register_init(init)
 collectd.register_shutdown(shutdown)
 collectd.register_write(write)
-

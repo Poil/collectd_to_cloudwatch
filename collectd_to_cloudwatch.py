@@ -5,7 +5,7 @@ from yaml import load as yload
 REGION = False
 AWS_ACCESS_KEY_ID = False
 AWS_SECRET_ACCESS_KEY = False
-NAMESPACE = False
+NAMESPACE = "COLLECTD"
 METRICS = {}
 cw_ec2 = False
 

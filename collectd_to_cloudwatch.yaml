@@ -1,25 +1,46 @@
+apache:
+    apache_bytes:
+        unit: Bytes
+    apache_connections:
+        unit: Count/Second
+    apache_idle_workers:
+        unit: Count
+    apache_requests:
+        unit: Count/Second
+    apache_scoreboard:
+        unit: Count
+
 cpu:
     cpu:
-        idle: None
-        interrupt: None
-        nice: None
-        softirq: None
-        steal: None
-        system: None
-        user: None
-        wait: None
+        unit: None
 
 df:
     df_complex:
-        free: Bytes
-        reserved: Bytes
-        used: Bytes
+        unit: Bytes
 
 memory:
     memory:
-        buffered: Bytes
-        cached: Bytes
-        free: Bytes
-        used: Bytes
-        slab_recl: Bytes
-        slab_unrecl: Bytes
+        unit: Bytes
+
+load:
+    load: 
+        unit: None
+
+ps:
+    fork_rate:
+        unit: Count/Second
+    ps_state:
+        unit: Count
+
+swap:
+    swap:
+        type-instance:
+            cached: Bytes
+            free: Bytes
+            used: Bytes
+            io-in: Count
+            io-out: Count
+
+uptime:
+    uptime:
+        unit: Second

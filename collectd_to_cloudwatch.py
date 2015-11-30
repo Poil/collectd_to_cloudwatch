@@ -2,6 +2,7 @@ import collectd
 import boto.ec2.cloudwatch
 import boto.ec2
 import boto.utils
+import sys
 from yaml import load as yload
 from xml.dom.minidom import parseString
 
@@ -96,16 +97,17 @@ def write(vl, datas=None):
             if METRICS[vl.plugin][vl.type].get('type_instance', False):
                 unit = METRICS[vl.plugin][vl.type]['type_instance'].get(vl.type_instance, unit)
 
-        if AS_GRP_NAME:
-            dimensions = {'InstanceId': INSTANCE_ID, 'AutoScalingGroupName': AS_GRP_NAME}
-        else:
-            dimensions = {'InstanceId': INSTANCE_ID}
+        dimensions = {'InstanceId': INSTANCE_ID}
 
         # Needed ?
         for i in vl.values:
-            collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
             try:
+                collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
                 cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
+                if AS_GRP_NAME:
+                    dimensions = {'AutoScalingGroupName': AS_GRP_NAME}
+                    collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
+                    cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
             except boto.exception.EC2ResponseError:
                 print_boto_error()
                 collectd.warning(('Fail to put {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))

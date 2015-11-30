@@ -8,7 +8,7 @@ AWS_ACCESS_KEY_ID = False
 AWS_SECRET_ACCESS_KEY = False
 NAMESPACE = "COLLECTD"
 METRICS = {}
-cw_ec2 = False
+cw_ec2 = None
 INSTANCE_ID = False
 
 
@@ -81,7 +81,7 @@ def write(vl, datas=None):
             if METRICS[vl.plugin][vl.type].get('type_instance', False):
                 unit = METRICS[vl.plugin][vl.type]['type_instance'].get(vl.type_instance, unit)
 
-        dimensions = {'InstanceId': INSTANCE_ID, 'InstanceName': vl.host}
+        dimensions = {'InstanceId': INSTANCE_ID}
         # Needed ?
         for i in vl.values:
             collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))

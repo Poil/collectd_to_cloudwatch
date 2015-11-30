@@ -29,7 +29,8 @@ plugin name:
     "Resource":"*",
     "Action":[
       "cloudwatch:Get*",
-      "cloudwatch:Put*"
+      "cloudwatch:Put*",
+      "ec2:Describe*"
     ],
     "Effect":"Allow"
   }]

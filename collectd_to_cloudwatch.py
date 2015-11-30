@@ -1,15 +1,18 @@
 import collectd
 import boto.ec2.cloudwatch
+import boto.ec2
 import boto.utils
 from yaml import load as yload
+from pprint import pprint
 
 REGION = False
 AWS_ACCESS_KEY_ID = False
 AWS_SECRET_ACCESS_KEY = False
-NAMESPACE = "COLLECTD"
+NAMESPACE = "AWS/EC2"
 METRICS = {}
 cw_ec2 = None
 INSTANCE_ID = False
+AS_GRP_NAME = False
 
 
 def config(conf):
@@ -42,19 +45,29 @@ def config(conf):
     INSTANCE_ID = boto.utils.get_instance_metadata()['instance-id']
 
 
+def get_tag():
+    global cw_ec2, INSTANCE_ID
+    reservations = cw_ec2.get_all_instances(instance_ids=[INSTANCE_ID])
+    for res in reservations:
+        instance = reservations[0].instances[0]
+        return instance.tags.get('aws:autoscaling:groupName', False)
+
+
 def init():
     collectd.debug('initing stuff')
-    global cw_ec2, REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+    global cw_ec2, REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AS_GRP_NAME
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         try:
-            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+            cw_ec2 = boto.ec2.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
         except:
             collectd.warning("Couldn't connect to cloudwatch with your access_key")
     else:
         try:
-            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION)
+			cw_ec2 = conn=boto.ec2.connect_to_region(REGION)
         except:
             collectd.warning("Couldn't connect to cloudwatch with your instance role")
+
+    AS_GRP_NAME = get_tag()
 
 
 def shutdown():
@@ -62,7 +75,7 @@ def shutdown():
 
 
 def write(vl, datas=None):
-    global cw_ec2, NAMESPACE, METRICS, INSTANCE_ID
+    global cw_ec2, NAMESPACE, METRICS, INSTANCE_ID, AS_GRP_NAME
 
     # Get config for current p/t, if not exists, do nothing
     if METRICS.get(vl.plugin) and METRICS[vl.plugin].get(vl.type):
@@ -81,12 +94,16 @@ def write(vl, datas=None):
             if METRICS[vl.plugin][vl.type].get('type_instance', False):
                 unit = METRICS[vl.plugin][vl.type]['type_instance'].get(vl.type_instance, unit)
 
-        dimensions = {'InstanceId': INSTANCE_ID}
+        if AS_GRP_NAME:
+            dimensions = {'InstanceId': INSTANCE_ID, 'AutoScalingGroupName': str(AS_GRP_NAME)}
+        else:
+            dimensions = {'InstanceId': INSTANCE_ID}
+
         # Needed ?
         for i in vl.values:
             collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
             try:
-                cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
+                cw_ec2.cloudwatch.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
             except:
                 collectd.debug(('Fail to put {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
 

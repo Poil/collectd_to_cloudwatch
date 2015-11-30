@@ -8,7 +8,7 @@ POC of collectd to cloudwatch
  * restart collectd
 
 * Extra configuration
- * By default values will be writed in the namespace "COLLECTD" you can change it (for exemple AWS/EC2)
+ * By default values will be writed in the namespace "AWS/EC2" you can change it, but it seems to be mandatory for EC2 AutoScaling metrics
  * You can define more plugin/type in collectd_to_cloudwatch.yaml, all defined plugin/type will be send to cloudwatch.
 
 * collectd_to_cloudwatch.yaml format :
@@ -21,3 +21,18 @@ plugin name:
         type-intance1-name: Cloudwatch unit for the plugin/type/type-instance
         type-intance2-name: Cloudwatch unit for the plugin/type/type-instance
 ```
+
+* Needed IAM policy on each EC2 instances
+```json
+{
+  "Statement":[{
+    "Resource":"*",
+    "Action":[
+      "cloudwatch:Get*",
+      "cloudwatch:Put*"
+    ],
+    "Effect":"Allow"
+  }]
+}
+```
+

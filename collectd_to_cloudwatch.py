@@ -3,7 +3,7 @@ import boto.ec2.cloudwatch
 import boto.ec2
 import boto.utils
 from yaml import load as yload
-from pprint import pprint
+from xml.dom.minidom import parseString
 
 REGION = False
 AWS_ACCESS_KEY_ID = False
@@ -11,6 +11,7 @@ AWS_SECRET_ACCESS_KEY = False
 NAMESPACE = "AWS/EC2"
 METRICS = {}
 cw_ec2 = None
+ec2 = None
 INSTANCE_ID = False
 AS_GRP_NAME = False
 
@@ -33,7 +34,7 @@ def config(conf):
 
     if not metrics_config:
         collectd.warning("Missing YAML plugins configuration please define metrics_config")
-    
+
     collectd.debug('Loading YAML plugins configuration')
     try:
         stream = open(metrics_config)
@@ -46,28 +47,29 @@ def config(conf):
 
 
 def get_tag():
-    global cw_ec2, INSTANCE_ID
-    reservations = cw_ec2.get_all_instances(instance_ids=[INSTANCE_ID])
-    for res in reservations:
-        instance = reservations[0].instances[0]
-        return instance.tags.get('aws:autoscaling:groupName', False)
+    global ec2, INSTANCE_ID
+    reservations = ec2.get_all_instances(instance_ids=[INSTANCE_ID])
+    instance = reservations[0].instances[0]
+    return instance.tags.get('aws:autoscaling:groupName', False)
 
 
 def init():
     collectd.debug('initing stuff')
-    global cw_ec2, REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AS_GRP_NAME
+    global ec2, cw_ec2, REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AS_GRP_NAME
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         try:
-            cw_ec2 = boto.ec2.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+            ec2 = boto.ec2.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
         except:
             collectd.warning("Couldn't connect to cloudwatch with your access_key")
     else:
         try:
-			cw_ec2 = conn=boto.ec2.connect_to_region(REGION)
+            ec2 = boto.ec2.connect_to_region(REGION)
+            cw_ec2 = boto.ec2.cloudwatch.connect_to_region(REGION)
         except:
             collectd.warning("Couldn't connect to cloudwatch with your instance role")
 
-    AS_GRP_NAME = get_tag()
+    AS_GRP_NAME = get_tag().encode('ascii')
 
 
 def shutdown():
@@ -95,7 +97,7 @@ def write(vl, datas=None):
                 unit = METRICS[vl.plugin][vl.type]['type_instance'].get(vl.type_instance, unit)
 
         if AS_GRP_NAME:
-            dimensions = {'InstanceId': INSTANCE_ID, 'AutoScalingGroupName': str(AS_GRP_NAME)}
+            dimensions = {'InstanceId': INSTANCE_ID, 'AutoScalingGroupName': AS_GRP_NAME}
         else:
             dimensions = {'InstanceId': INSTANCE_ID}
 
@@ -103,9 +105,26 @@ def write(vl, datas=None):
         for i in vl.values:
             collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
             try:
-                cw_ec2.cloudwatch.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
-            except:
-                collectd.debug(('Fail to put {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
+                cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
+            except boto.exception.EC2ResponseError:
+                print_boto_error()
+                collectd.warning(('Fail to put {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
+
+
+def print_boto_error():
+    """Attempts to extract the XML from boto errors to present plain errors with no stacktraces."""
+
+    try:
+        quick_summary, null, xml = str(sys.exc_info()[1]).split('\n')
+        error_msg = parseString(xml).getElementsByTagName('Response')[0].getElementsByTagName('Errors')[0].getElementsByTagName('Error')[0]
+        print
+        collectd.warning('AWS Error: {0}\n'.format(quick_summary))
+        collectd.warning('{0}: {1}\n'.format(error_msg.getElementsByTagName('Code')[0].firstChild.data, error_msg.getElementsByTagName('Message')[0].firstChild.data))
+        print
+    except:
+        # Raise the exception if parsing failed
+        raise
+    return False
 
 
 collectd.register_config(config)

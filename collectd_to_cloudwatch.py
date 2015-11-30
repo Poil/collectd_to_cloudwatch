@@ -51,7 +51,10 @@ def get_tag():
     global ec2, INSTANCE_ID
     reservations = ec2.get_all_instances(instance_ids=[INSTANCE_ID])
     instance = reservations[0].instances[0]
-    return instance.tags.get('aws:autoscaling:groupName', False)
+    if instance.tags.get('aws:autoscaling:groupName', False):
+        return instance.tags['aws:autoscaling:groupName'].encode('ascii')
+    else:
+        return False
 
 
 def init():
@@ -70,7 +73,7 @@ def init():
         except:
             collectd.warning("Couldn't connect to cloudwatch with your instance role")
 
-    AS_GRP_NAME = get_tag().encode('ascii')
+    AS_GRP_NAME = get_tag()
 
 
 def shutdown():

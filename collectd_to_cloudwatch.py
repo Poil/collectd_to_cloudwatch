@@ -111,9 +111,8 @@ def write(vl, datas=None):
                 collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
                 cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
                 if AS_GRP_NAME:
-                    dimensions = {'AutoScalingGroupName': AS_GRP_NAME}
                     collectd.debug(('Putting {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
-                    cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions=dimensions)
+                    cw_ec2.put_metric_data(namespace=NAMESPACE, name=metric_name, value=float(i), unit=unit, dimensions={'AutoScalingGroupName': AS_GRP_NAME})
             except boto.exception.EC2ResponseError:
                 print_boto_error()
                 collectd.warning(('Fail to put {metric}={value} {unit} to {namespace} {dimensions}').format(metric=metric_name, value=i, unit=unit, namespace=NAMESPACE, dimensions=dimensions))
